@@ -1,191 +1,233 @@
 import streamlit as st
 import matplotlib.pyplot as plt
-import pandas as pd
 
+# ===============================
+# STATIC DATA (EMBEDDED)
+# ===============================
 
-st.set_page_config(
-    page_title="Agricultural Water Budgeting Tool",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
-
-
-RAIN_FALL = {
+# Average seasonal rainfall (mm)
+RAINFALL_DATA = {
     "Indore": 800,
     "Bhopal": 1000,
-    "Nagpur": 900,
-    "Pune": 750
+    "Nagpur": 900
 }
 
-CROP_WATER_REQ = {
+# Crop water requirement per season (mm)
+CROP_WATER_REQUIREMENT = {
     "Rice": 1200,
     "Wheat": 450,
     "Soybean": 500,
-    "Maize": 600,
-    "Millet": 350
+    "Maize": 600
 }
 
-IRRIGATION_EFF = {
+# Irrigation efficiency factors
+IRRIGATION_FACTOR = {
     "Flood": 1.0,
     "Sprinkler": 0.75,
     "Drip": 0.6
 }
 
-GROUNDWATER_LEVEL = {
+# Groundwater availability index
+GROUNDWATER_INDEX = {
     "Low": 0.2,
     "Medium": 0.4,
     "High": 0.6
 }
 
+# ===============================
+# PAGE SETUP
+# ===============================
 
-st.title("🌾 Agricultural Water Budgeting Tool")
-st.markdown(
-    """
-    A **decision-support system** that helps farmers understand  
-    **how much water they should use**, whether a crop is **safe**, **risky**,  
-    or **not suitable**, and what **better options** exist when water is limited.
-    """
+st.set_page_config(
+    page_title="Agricultural Water Budgeting Tool",
+    layout="wide"
 )
 
-st.divider()
-
-st.sidebar.header("🌱 Farm Details")
-
-location = st.sidebar.selectbox("📍 Location", list(RAIN_FALL.keys()))
-crop = st.sidebar.selectbox("🌾 Crop", list(CROP_WATER_REQ.keys()))
-area = st.sidebar.number_input("📐 Farm Area (hectares)", min_value=0.1, value=1.0)
-irrigation = st.sidebar.selectbox("🚿 Irrigation Method", list(IRRIGATION_EFF.keys()))
-groundwater = st.sidebar.selectbox("💧 Groundwater Availability", list(GROUNDWATER_LEVEL.keys()))
-
-
-rain_mm = RAIN_FALL[location]
-rain_water = rain_mm * area * 10
-
-groundwater_water = rain_water * GROUNDWATER_LEVEL[groundwater]
-available_water = rain_water + groundwater_water
-
-crop_demand = (
-    CROP_WATER_REQ[crop]
-    * area
-    * 10
-    * IRRIGATION_EFF[irrigation]
+st.title("🌾 Agricultural Efficiency – Sensor-Ready Water Budgeting Tool")
+st.write(
+    "A decision-support system to apply the **right amount of water at the right time** "
+    "using water budgeting and simulated sensor inputs."
 )
 
-balance = available_water - crop_demand
+# ===============================
+# SIDEBAR INPUTS
+# ===============================
 
+st.sidebar.header("🌱 Field & Sensor Inputs")
 
-if balance >= 0:
-    recommended_usage = crop_demand
-    shortage_ratio = 0
-    decision = "SAFE"
-elif abs(balance) / crop_demand <= 0.25:
-    recommended_usage = available_water
-    shortage_ratio = abs(balance) / crop_demand
-    decision = "MANAGEABLE RISK"
+location = st.sidebar.selectbox(
+    "Location",
+    list(RAINFALL_DATA.keys())
+)
+
+crop = st.sidebar.selectbox(
+    "Crop Type",
+    list(CROP_WATER_REQUIREMENT.keys())
+)
+
+season = st.sidebar.selectbox(
+    "Season",
+    ["Kharif", "Rabi"]
+)
+
+area = st.sidebar.number_input(
+    "Farm Area (hectares)",
+    min_value=0.1,
+    value=1.0
+)
+
+irrigation = st.sidebar.selectbox(
+    "Irrigation Method",
+    list(IRRIGATION_FACTOR.keys())
+)
+
+groundwater = st.sidebar.selectbox(
+    "Groundwater Availability",
+    list(GROUNDWATER_INDEX.keys())
+)
+
+# ---- Simulated Sensor Input ----
+soil_moisture = st.sidebar.selectbox(
+    "Soil Moisture Level (Sensor Input)",
+    ["Low", "Medium", "High"]
+)
+
+# ===============================
+# WATER AVAILABILITY CALCULATION
+# ===============================
+
+rainfall_mm = RAINFALL_DATA[location]
+
+# 1 mm rainfall over 1 hectare = 10 cubic meters
+rainfall_water = rainfall_mm * area * 10
+groundwater_water = rainfall_water * GROUNDWATER_INDEX[groundwater]
+
+total_available_water = rainfall_water + groundwater_water
+
+# ===============================
+# CROP WATER DEMAND
+# ===============================
+
+crop_wr = CROP_WATER_REQUIREMENT[crop]
+irrigation_efficiency = IRRIGATION_FACTOR[irrigation]
+
+base_crop_demand = crop_wr * area * 10 * irrigation_efficiency
+
+# ===============================
+# SENSOR-BASED ADJUSTMENT
+# ===============================
+
+if soil_moisture == "High":
+    moisture_factor = 0.6
+elif soil_moisture == "Medium":
+    moisture_factor = 0.8
 else:
-    recommended_usage = available_water
-    shortage_ratio = abs(balance) / crop_demand
-    decision = "NOT VIABLE"
+    moisture_factor = 1.0
 
+adjusted_crop_demand = base_crop_demand * moisture_factor
+
+# ===============================
+# WATER BUDGET
+# ===============================
+
+water_balance = total_available_water - adjusted_crop_demand
+
+if water_balance > 0:
+    status = "SURPLUS"
+elif water_balance == 0:
+    status = "BALANCED"
+else:
+    status = "DEFICIT"
+
+# ===============================
+# DISPLAY METRICS
+# ===============================
 
 st.subheader("💧 Water Budget Summary")
 
-m1, m2, m3, m4 = st.columns(4)
+col1, col2, col3 = st.columns(3)
 
-m1.metric("Available Water (m³)", f"{available_water:,.0f}")
-m2.metric("Crop Water Demand (m³)", f"{crop_demand:,.0f}")
-m3.metric("Recommended Usage (m³)", f"{recommended_usage:,.0f}")
-m4.metric("Water Balance (m³)", f"{balance:,.0f}")
+col1.metric("Available Water (m³)", round(total_available_water, 2))
+col2.metric("Crop Water Demand (m³)", round(adjusted_crop_demand, 2))
+col3.metric("Water Balance (m³)", round(water_balance, 2))
 
-st.divider()
+if status == "SURPLUS":
+    st.success("Status: WATER SURPLUS")
+elif status == "BALANCED":
+    st.warning("Status: WATER BALANCED")
+else:
+    st.error("Status: WATER DEFICIT")
 
+# ===============================
+# IRRIGATION TIMING ADVISORY
+# ===============================
 
-st.subheader("Farmer Decision & Explanation")
+st.subheader("⏱ Irrigation Timing Recommendation")
 
-if decision == "SAFE":
-    st.success(
-        f"""
-         **Safe to cultivate**
+if soil_moisture == "Low":
+    timing_msg = "Irrigate immediately to avoid crop stress."
+elif soil_moisture == "Medium":
+    timing_msg = "Irrigate within the next 2–3 days."
+else:
+    timing_msg = "No irrigation required at present."
 
-        - Available water is sufficient for this crop  
-        - You can safely use **up to {recommended_usage:,.0f} m³**  
-        - Continue normal irrigation practices
-        """
-    )
+st.info(timing_msg)
 
-elif decision == "MANAGEABLE RISK":
-    st.warning(
-        f"""
-        **Manageable water risk**
+# ===============================
+# WATER SAVINGS METRIC
+# ===============================
 
-        - Water is slightly less than required  
-        - Reduce irrigation by **{shortage_ratio*100:.1f}%**  
-        - Maximum safe usage: **{recommended_usage:,.0f} m³**  
-        - Prefer drip or sprinkler irrigation
-        """
-    )
+baseline_demand = crop_wr * area * 10  # Flood irrigation baseline
+water_saved = baseline_demand - adjusted_crop_demand
+saving_percent = (water_saved / baseline_demand) * 100
+
+st.subheader("💦 Irrigation Efficiency Impact")
+st.metric("Estimated Water Saved (%)", round(saving_percent, 2))
+
+# ===============================
+# VISUALIZATION
+# ===============================
+
+st.subheader("📊 Water Availability vs Demand")
+
+fig, ax = plt.subplots()
+ax.bar(
+    ["Available Water", "Crop Demand"],
+    [total_available_water, adjusted_crop_demand]
+)
+ax.set_ylabel("Water (m³)")
+ax.set_title("Agricultural Water Budget")
+
+st.pyplot(fig)
+
+# ===============================
+# DECISION SUPPORT
+# ===============================
+
+st.subheader("📌 Decision Support Recommendations")
+
+if status == "DEFICIT":
+    st.write("- Switch to drip or sprinkler irrigation")
+    st.write("- Reduce irrigation frequency")
+    st.write("- Consider low water-intensive crops")
+    st.write("- Plan groundwater recharge measures")
+
+elif status == "SURPLUS":
+    st.write("- Current irrigation plan is safe")
+    st.write("- Opportunity for groundwater recharge")
+    st.write("- Continue monitoring soil moisture")
 
 else:
-    st.error(
-        f"""
-         **Not suitable with current water availability**
+    st.write("- Maintain current irrigation schedule")
+    st.write("- Monitor rainfall and soil conditions")
 
-        - Water is insufficient for this crop  
-        - High risk of crop stress or yield loss  
-        - Action required: change crop or reduce cultivated area
-        """
-    )
-
-
-st.subheader("📊 Water Planning Comparison")
-
-fig1, ax1 = plt.subplots()
-ax1.bar(
-    ["Available Water", "Crop Demand", "Recommended Usage"],
-    [available_water, crop_demand, recommended_usage]
-)
-ax1.set_ylabel("Water (m³)")
-ax1.set_title("How Available Water Compares With Crop Needs")
-
-st.pyplot(fig1)
-
-
-st.subheader("🌧️ Water Source Contribution")
-
-fig2, ax2 = plt.subplots()
-ax2.pie(
-    [rain_water, groundwater_water],
-    labels=["Rainfall", "Groundwater"],
-    autopct="%1.1f%%",
-    startangle=90
-)
-ax2.axis("equal")
-
-st.pyplot(fig2)
-
-
-if decision == "NOT VIABLE":
-    st.subheader("🌱 Better Crop Options for This Water Level")
-
-    suitable_crops = []
-    for c, req in CROP_WATER_REQ.items():
-        demand = req * area * 10 * IRRIGATION_EFF[irrigation]
-        if demand <= available_water:
-            suitable_crops.append(c)
-
-    if suitable_crops:
-        st.success(
-            "Based on available water, these crops are **safer choices**:\n\n"
-            + ", ".join(suitable_crops)
-        )
-    else:
-        st.warning(
-            "No crop is fully safe with the current water level.\n"
-            "Consider reducing farm area or improving irrigation efficiency."
-        )
-
+# ===============================
+# SENSOR DISCLAIMER
+# ===============================
 
 st.info(
-    "This offline-first prototype converts water data into **clear farming decisions**, "
-    "making it suitable for real-world agricultural planning and hackathons."
+    "🔌 **Sensor-Ready Architecture:** "
+    "Soil moisture and rainfall values are simulated in this prototype. "
+    "In real deployment, inputs will be ingested directly from IoT soil sensors "
+    "and automated weather stations."
 )
