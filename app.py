@@ -5,14 +5,12 @@ import matplotlib.pyplot as plt
 # STATIC DATA (EMBEDDED)
 # ===============================
 
-# Average seasonal rainfall (mm)
 RAINFALL_DATA = {
     "Indore": 800,
     "Bhopal": 1000,
     "Nagpur": 900
 }
 
-# Crop water requirement per season (mm)
 CROP_WATER_REQUIREMENT = {
     "Rice": 1200,
     "Wheat": 450,
@@ -20,14 +18,12 @@ CROP_WATER_REQUIREMENT = {
     "Maize": 600
 }
 
-# Irrigation efficiency factors
 IRRIGATION_FACTOR = {
     "Flood": 1.0,
     "Sprinkler": 0.75,
     "Drip": 0.6
 }
 
-# Groundwater availability index
 GROUNDWATER_INDEX = {
     "Low": 0.2,
     "Medium": 0.4,
@@ -43,10 +39,26 @@ st.set_page_config(
     layout="wide"
 )
 
-st.title("🌾 Agricultural Efficiency – Sensor-Ready Water Budgeting Tool")
+st.title("🌾 Agricultural Efficiency – Precision Irrigation Tool")
+
+st.caption(
+    "Inspired by **Israel’s precision irrigation and water-efficient agriculture practices**, "
+    "adapted for scalable deployment in India."
+)
+
 st.write(
-    "A decision-support system to apply the **right amount of water at the right time** "
-    "using water budgeting and simulated sensor inputs."
+    "This decision-support system recommends the **right amount of water at the right time** "
+    "using water budgeting, simulated sensor inputs, and circular water-use principles."
+)
+
+# ===============================
+# SIDEBAR – IMPLEMENTATION STATUS
+# ===============================
+
+st.sidebar.success("🔄 Current Mode: Phase 1 – Decision Support (Sensor Simulated)")
+st.sidebar.caption(
+    "Phase 2: IoT Sensor Integration\n\n"
+    "Phase 3: Village / Regional Water Planning"
 )
 
 # ===============================
@@ -55,20 +67,9 @@ st.write(
 
 st.sidebar.header("🌱 Field & Sensor Inputs")
 
-location = st.sidebar.selectbox(
-    "Location",
-    list(RAINFALL_DATA.keys())
-)
-
-crop = st.sidebar.selectbox(
-    "Crop Type",
-    list(CROP_WATER_REQUIREMENT.keys())
-)
-
-season = st.sidebar.selectbox(
-    "Season",
-    ["Kharif", "Rabi"]
-)
+location = st.sidebar.selectbox("Location", list(RAINFALL_DATA.keys()))
+crop = st.sidebar.selectbox("Crop Type", list(CROP_WATER_REQUIREMENT.keys()))
+season = st.sidebar.selectbox("Season", ["Kharif", "Rabi"])
 
 area = st.sidebar.number_input(
     "Farm Area (hectares)",
@@ -86,19 +87,16 @@ groundwater = st.sidebar.selectbox(
     list(GROUNDWATER_INDEX.keys())
 )
 
-# ---- Simulated Sensor Input ----
 soil_moisture = st.sidebar.selectbox(
     "Soil Moisture Level (Sensor Input)",
     ["Low", "Medium", "High"]
 )
 
 # ===============================
-# WATER AVAILABILITY CALCULATION
+# WATER AVAILABILITY
 # ===============================
 
 rainfall_mm = RAINFALL_DATA[location]
-
-# 1 mm rainfall over 1 hectare = 10 cubic meters
 rainfall_water = rainfall_mm * area * 10
 groundwater_water = rainfall_water * GROUNDWATER_INDEX[groundwater]
 
@@ -159,30 +157,38 @@ else:
     st.error("Status: WATER DEFICIT")
 
 # ===============================
-# IRRIGATION TIMING ADVISORY
+# PRECISION IRRIGATION ADVISORY
 # ===============================
 
-st.subheader("⏱ Irrigation Timing Recommendation")
+st.subheader("⏱ Precision Irrigation Advisory (Israel-Inspired)")
 
 if soil_moisture == "Low":
-    timing_msg = "Irrigate immediately to avoid crop stress."
+    timing_msg = "Immediate irrigation recommended to prevent crop stress."
 elif soil_moisture == "Medium":
-    timing_msg = "Irrigate within the next 2–3 days."
+    timing_msg = "Irrigate within the next 2–3 days based on weather outlook."
 else:
-    timing_msg = "No irrigation required at present."
+    timing_msg = "No irrigation required at present. Monitor soil moisture."
 
 st.info(timing_msg)
 
 # ===============================
-# WATER SAVINGS METRIC
+# CIRCULAR WATER USE METRICS
 # ===============================
 
-baseline_demand = crop_wr * area * 10  # Flood irrigation baseline
+baseline_demand = crop_wr * area * 10  # Traditional flood irrigation baseline
 water_saved = baseline_demand - adjusted_crop_demand
 saving_percent = (water_saved / baseline_demand) * 100
 
-st.subheader("💦 Irrigation Efficiency Impact")
-st.metric("Estimated Water Saved (%)", round(saving_percent, 2))
+st.subheader("♻ Circular Water Use Impact")
+
+col4, col5 = st.columns(2)
+col4.metric("Water Saved (m³)", round(water_saved, 2))
+col5.metric("Water Saved (%)", round(saving_percent, 2))
+
+st.caption(
+    "Optimizing irrigation reduces unnecessary groundwater extraction and "
+    "supports circular and sustainable water use."
+)
 
 # ===============================
 # VISUALIZATION
@@ -192,11 +198,11 @@ st.subheader("📊 Water Availability vs Demand")
 
 fig, ax = plt.subplots()
 ax.bar(
-    ["Available Water", "Crop Demand"],
+    ["Available Water", "Precision Crop Demand"],
     [total_available_water, adjusted_crop_demand]
 )
 ax.set_ylabel("Water (m³)")
-ax.set_title("Agricultural Water Budget")
+ax.set_title("Agricultural Water Budget Analysis")
 
 st.pyplot(fig)
 
@@ -207,14 +213,14 @@ st.pyplot(fig)
 st.subheader("📌 Decision Support Recommendations")
 
 if status == "DEFICIT":
-    st.write("- Switch to drip or sprinkler irrigation")
-    st.write("- Reduce irrigation frequency")
-    st.write("- Consider low water-intensive crops")
+    st.write("- Shift to drip or sprinkler irrigation")
+    st.write("- Reduce irrigation frequency using soil moisture feedback")
+    st.write("- Prefer low water-intensive crops")
     st.write("- Plan groundwater recharge measures")
 
 elif status == "SURPLUS":
-    st.write("- Current irrigation plan is safe")
-    st.write("- Opportunity for groundwater recharge")
+    st.write("- Current irrigation plan is efficient")
+    st.write("- Excess water can support groundwater recharge")
     st.write("- Continue monitoring soil moisture")
 
 else:
@@ -227,7 +233,7 @@ else:
 
 st.info(
     "🔌 **Sensor-Ready Architecture:** "
-    "Soil moisture and rainfall values are simulated in this prototype. "
-    "In real deployment, inputs will be ingested directly from IoT soil sensors "
-    "and automated weather stations."
+    "This prototype uses simulated soil moisture inputs. "
+    "In real deployment, data will be collected from IoT soil sensors "
+    "and automated weather stations, following Israel’s smart farming model."
 )
