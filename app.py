@@ -170,9 +170,7 @@ with tab2:
             "Voice-based interaction helps farmers who are not comfortable reading data or numbers."
         )
 
-# =====================================================
-# TAB 3: SEASON GUIDANCE (NEW & IMPORTANT)
-# =====================================================
+
 with tab3:
     st.subheader(f"🌦 {season} Season – Farmer Guidance")
 
@@ -190,11 +188,3 @@ with tab3:
         "based on crop season rather than technical terms."
     )
 
-# ===============================
-# FOOTER
-# ===============================
-st.markdown("---")
-st.caption(
-    "Demonstration prototype for hackathon use. "
-    "Sensor data is simulated and recommendations are advisory in nature."
-)
