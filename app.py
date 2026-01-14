@@ -231,12 +231,6 @@ else:
 # SENSOR DISCLAIMER
 # ===============================
 
-st.info(
-    "🔌 **Sensor-Ready Architecture:** "
-    "This prototype uses simulated soil moisture inputs. "
-    "In real deployment, data will be collected from IoT soil sensors "
-    "and automated weather stations, following Israel’s smart farming model."
-)
 import streamlit as st
 import random
 import time
@@ -270,7 +264,7 @@ data = get_sensor_data()
 # -------------------------
 mode = st.radio(
     "Choose how you want to use the system:",
-    ["📊 View Sensor Statistics", "🎙️ Talk to AI Assistant"]
+    ["📊 View Sensor Statistics", "🤖 AI Assistant (Text / Voice)"]
 )
 
 # =====================================================
@@ -287,21 +281,26 @@ if mode == "📊 View Sensor Statistics":
     col4.metric("Rain Expected", data["rain_forecast"])
 
     st.info(
-        "ℹ️ These values are collected from field sensors. "
-        "Farmers may choose to view them directly or use the AI assistant for guidance."
+        "ℹ️ Farmers who are comfortable with numbers can view sensor data directly. "
+        "Others may use the AI assistant for simple guidance."
     )
 
 # =====================================================
 # OPTION B: AI ASSISTANT
 # =====================================================
 else:
-    st.header("🎙️ AI Irrigation Assistant")
-    st.write("Ask in simple language. Example: *Aaj paani dena chahiye?*")
+    st.header("🤖 AI Irrigation Assistant")
 
-    user_query = st.text_input("Ask your question:")
+    st.write("Ask your question by typing or speaking. Example: *Aaj paani dena chahiye?*")
 
-    if st.button("Ask AI Assistant"):
-        with st.spinner("AI Assistant is thinking..."):
+    # TEXT INPUT
+    user_text = st.text_input("⌨️ Type your question (optional)")
+
+    # VOICE INPUT
+    audio = st.audio_input("🎤 Speak your question")
+
+    if st.button("Get AI Advice"):
+        with st.spinner("AI Assistant is analyzing field conditions..."):
             time.sleep(1)
 
         # SIMPLE DECISION LOGIC
@@ -321,12 +320,12 @@ else:
                 "Aaj shaam ko thoda paani dena behtar rahega."
             )
 
-        st.success("🤖 AI Assistant Response:")
+        st.success("🤖 AI Assistant Advice")
         st.write(response)
 
         st.caption(
-            "🔊 (Voice-based response can be enabled in future using speech-to-text "
-            "and text-to-speech integration.)"
+            "🔊 Voice-based interaction is demonstrated using microphone input. "
+            "Speech understanding and multilingual support can be enhanced in future phases."
         )
 
 # -------------------------
@@ -335,7 +334,5 @@ else:
 st.markdown("---")
 st.caption(
     "This is a demonstration prototype. "
-    "Sensor values are simulated and the AI assistant uses rule-based logic "
-    "for decision support."
+    "Sensor values are simulated, and AI decisions are rule-based for hackathon demonstration purposes."
 )
-
