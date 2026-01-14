@@ -237,3 +237,105 @@ st.info(
     "In real deployment, data will be collected from IoT soil sensors "
     "and automated weather stations, following Israel’s smart farming model."
 )
+import streamlit as st
+import random
+import time
+
+# -------------------------
+# PAGE CONFIG
+# -------------------------
+st.set_page_config(
+    page_title="Smart Irrigation AI Assistant",
+    layout="wide"
+)
+
+st.title("🌱 Smart Irrigation Assistant for Farmers")
+st.caption("Sensor-Based Irrigation | Agriculture Hackathon Demo")
+
+# -------------------------
+# SIMULATED SENSOR DATA
+# -------------------------
+def get_sensor_data():
+    return {
+        "soil_moisture": random.randint(20, 80),   # %
+        "temperature": random.randint(20, 40),     # °C
+        "humidity": random.randint(30, 90),        # %
+        "rain_forecast": random.choice(["Yes", "No"])
+    }
+
+data = get_sensor_data()
+
+# -------------------------
+# MODE SELECTION
+# -------------------------
+mode = st.radio(
+    "Choose how you want to use the system:",
+    ["📊 View Sensor Statistics", "🎙️ Talk to AI Assistant"]
+)
+
+# =====================================================
+# OPTION A: STATISTICS VIEW
+# =====================================================
+if mode == "📊 View Sensor Statistics":
+    st.header("📊 Current Field Conditions")
+
+    col1, col2, col3, col4 = st.columns(4)
+
+    col1.metric("Soil Moisture (%)", data["soil_moisture"])
+    col2.metric("Temperature (°C)", data["temperature"])
+    col3.metric("Humidity (%)", data["humidity"])
+    col4.metric("Rain Expected", data["rain_forecast"])
+
+    st.info(
+        "ℹ️ These values are collected from field sensors. "
+        "Farmers may choose to view them directly or use the AI assistant for guidance."
+    )
+
+# =====================================================
+# OPTION B: AI ASSISTANT
+# =====================================================
+else:
+    st.header("🎙️ AI Irrigation Assistant")
+    st.write("Ask in simple language. Example: *Aaj paani dena chahiye?*")
+
+    user_query = st.text_input("Ask your question:")
+
+    if st.button("Ask AI Assistant"):
+        with st.spinner("AI Assistant is thinking..."):
+            time.sleep(1)
+
+        # SIMPLE DECISION LOGIC
+        if data["soil_moisture"] > 60:
+            response = (
+                "Mitti mein nami kaafi hai. "
+                "Aaj paani dene ki zarurat nahi hai."
+            )
+        elif data["rain_forecast"] == "Yes":
+            response = (
+                "Barish ke chances hain. "
+                "Aaj paani mat dijiye."
+            )
+        else:
+            response = (
+                "Mitti sookhi hai. "
+                "Aaj shaam ko thoda paani dena behtar rahega."
+            )
+
+        st.success("🤖 AI Assistant Response:")
+        st.write(response)
+
+        st.caption(
+            "🔊 (Voice-based response can be enabled in future using speech-to-text "
+            "and text-to-speech integration.)"
+        )
+
+# -------------------------
+# FOOTER
+# -------------------------
+st.markdown("---")
+st.caption(
+    "This is a demonstration prototype. "
+    "Sensor values are simulated and the AI assistant uses rule-based logic "
+    "for decision support."
+)
+
