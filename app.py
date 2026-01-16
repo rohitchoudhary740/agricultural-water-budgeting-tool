@@ -3,9 +3,7 @@ import matplotlib.pyplot as plt
 import random
 import time
 
-# ===============================
-# PAGE CONFIG
-# ===============================
+
 st.set_page_config(
     page_title="Smart Irrigation & Water Budgeting",
     layout="wide"
@@ -17,9 +15,7 @@ st.caption(
     "adapted for Indian farming conditions."
 )
 
-# ===============================
-# STATIC DATA
-# ===============================
+
 RAINFALL_DATA = {
     "Indore": 800,
     "Bhopal": 1000,
@@ -45,9 +41,7 @@ GROUNDWATER_INDEX = {
     "High": 0.6
 }
 
-# ===============================
-# SEASON EXPLANATION (NEW)
-# ===============================
+
 SEASON_INFO = {
     "Kharif": {
         "months": "June – October",
@@ -63,9 +57,7 @@ SEASON_INFO = {
     }
 }
 
-# ===============================
-# SIDEBAR INPUTS
-# ===============================
+
 st.sidebar.header("🌾 Farm Details")
 
 location = st.sidebar.selectbox("📍 Location", list(RAINFALL_DATA.keys()))
@@ -93,16 +85,11 @@ soil_moisture = st.sidebar.selectbox(
     ["Low", "Medium", "High"]
 )
 
-# ===============================
-# TABS (MODERN LAYOUT)
-# ===============================
+
 tab1, tab2, tab3 = st.tabs(
     ["📊 Water Budget & Advisory", "🤖 AI Assistant", "🌾 Season Guidance"]
 )
 
-# =====================================================
-# TAB 1: WATER BUDGET
-# =====================================================
 with tab1:
     st.subheader("💧 Water Budget Summary")
 
@@ -141,9 +128,7 @@ with tab1:
     ax.set_ylabel("Water (m³)")
     st.pyplot(fig)
 
-# =====================================================
-# TAB 2: AI ASSISTANT
-# =====================================================
+
 with tab2:
     st.subheader("🤖 AI Irrigation Assistant")
 
