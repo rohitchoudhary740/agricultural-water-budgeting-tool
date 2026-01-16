@@ -1,7 +1,6 @@
 import streamlit as st
 import matplotlib.pyplot as plt
 import time
-import re
 
 # ===============================
 # PAGE CONFIG
@@ -71,7 +70,7 @@ crop = st.sidebar.selectbox("Selected Crop", list(CROP_WATER_REQUIREMENT.keys())
 area = st.sidebar.number_input("Farm Area (hectares)", min_value=0.1, value=1.0)
 irrigation = st.sidebar.selectbox("Irrigation Method", list(IRRIGATION_FACTOR.keys()))
 groundwater = st.sidebar.selectbox("Groundwater Availability", list(GROUNDWATER_INDEX.keys()))
-soil_moisture = st.sidebar.selectbox("Soil Moisture", ["Low", "Medium", "High"])
+soil_moisture = st.sidebar.selectbox("Soil Moisture Level", ["Low", "Medium", "High"])
 
 # ===============================
 # TABS
@@ -92,7 +91,12 @@ with tab1:
     crop_wr = CROP_WATER_REQUIREMENT[crop]
     base_demand = crop_wr * area * 10 * IRRIGATION_FACTOR[irrigation]
 
-    moisture_factor = 0.6 if soil_moisture == "High" else 0.8 if soil_moisture == "Medium" else 1.0
+    moisture_factor = (
+        0.6 if soil_moisture == "High"
+        else 0.8 if soil_moisture == "Medium"
+        else 1.0
+    )
+
     adjusted_demand = base_demand * moisture_factor
     water_balance = total_available_water - adjusted_demand
 
@@ -107,12 +111,12 @@ with tab1:
     st.pyplot(fig)
 
     def recommend_crop(total_water, area):
-        wph = total_water / area
-        if wph >= 10000:
+        water_per_hectare = total_water / area
+        if water_per_hectare >= 10000:
             return "Rice"
-        elif wph >= 6000:
+        elif water_per_hectare >= 6000:
             return "Maize"
-        elif wph >= 5000:
+        elif water_per_hectare >= 5000:
             return "Soybean"
         else:
             return "Wheat"
@@ -131,78 +135,59 @@ with tab1:
     st.write(f"Risk Level: {risk_level}")
 
 # ===============================
-# TAB 2 – CLEAN BILINGUAL AI
+# TAB 2 – AI ASSISTANT (TEXT + VOICE)
 # ===============================
 with tab2:
     st.subheader("AI Irrigation Assistant")
-    st.write("Ask using text or voice. English and Hindi are supported.")
+    st.write("You may use text or voice. Select preferred response language.")
 
-    user_text = st.text_input("Type your question")
+    language = st.selectbox("Response Language", ["English", "Hindi"])
+
+    user_text = st.text_input("Type your question (optional)")
     audio = st.audio_input("Speak your question")
 
-    def is_hindi(text):
-        return bool(re.search(r'[\u0900-\u097F]', text))
-
-    def ai_response(text, lang):
-        t = text.lower()
-
-        if any(k in t for k in ["water", "irrigation", "paani"]):
-            if soil_moisture == "High":
-                return (
-                    "Soil moisture is sufficient. Irrigation is not required now."
-                    if lang == "en"
-                    else "मिट्टी में पर्याप्त नमी है। अभी सिंचाई की आवश्यकता नहीं है।"
-                )
-            elif soil_moisture == "Medium":
-                return (
-                    "Soil moisture is moderate. Irrigate in 1–2 days."
-                    if lang == "en"
-                    else "मिट्टी में मध्यम नमी है। 1–2 दिन में सिंचाई करें।"
-                )
-            else:
-                return (
-                    "Soil is dry. Immediate irrigation is required."
-                    if lang == "en"
-                    else "मिट्टी सूखी है। तुरंत सिंचाई आवश्यक है।"
-                )
-
-        if any(k in t for k in ["crop", "fasal"]):
+    def irrigation_advice(lang):
+        if soil_moisture == "High":
             return (
-                f"The recommended crop is {recommended_crop}."
-                if lang == "en"
-                else f"अनुशंसित फसल {recommended_crop} है।"
+                "Soil moisture is sufficient. Irrigation is not required at this time."
+                if lang == "English"
+                else "मिट्टी में पर्याप्त नमी है। अभी सिंचाई की आवश्यकता नहीं है।"
+            )
+        elif soil_moisture == "Medium":
+            return (
+                "Soil moisture is moderate. Irrigation can be done in 1–2 days."
+                if lang == "English"
+                else "मिट्टी में मध्यम नमी है। 1–2 दिन में सिंचाई करें।"
+            )
+        else:
+            return (
+                "Soil is dry. Immediate irrigation is required."
+                if lang == "English"
+                else "मिट्टी सूखी है। तुरंत सिंचाई आवश्यक है।"
             )
 
-        if any(k in t for k in ["risk", "nuksan"]):
-            return (
-                f"Current agricultural risk level is {risk_level}."
-                if lang == "en"
-                else f"वर्तमान कृषि जोखिम स्तर {risk_level} है।"
-            )
-
-        return (
-            "Please ask about water, crop, or risk."
-            if lang == "en"
-            else "कृपया पानी, फसल या जोखिम से संबंधित प्रश्न पूछें।"
-        )
-
-    if st.button("Get Advice"):
-        with st.spinner("Processing request..."):
+    if st.button("Get AI Advice"):
+        with st.spinner("Analyzing field conditions..."):
             time.sleep(1)
 
+        # Priority order: Text → Voice → Default
         if user_text:
-            lang = "hi" if is_hindi(user_text) else "en"
-            response = ai_response(user_text, lang)
+            response = irrigation_advice(language)
 
         elif audio is not None:
-            response = (
-                "Voice input received. Advisory generated based on current field parameters."
-                if soil_moisture != "Low"
-                else "Voice input received. Field conditions indicate irrigation requirement."
+            intro = (
+                "Voice input detected. Advisory generated based on current field conditions:\n\n"
+                if language == "English"
+                else "वॉइस इनपुट प्राप्त हुआ। खेत की वर्तमान स्थिति के आधार पर सलाह दी गई है:\n\n"
             )
+            response = intro + irrigation_advice(language)
 
         else:
-            response = "Please provide input using text or voice."
+            response = (
+                "Please provide input using text or voice."
+                if language == "English"
+                else "कृपया टेक्स्ट या वॉइस के माध्यम से प्रश्न पूछें।"
+            )
 
         st.write(response)
 
@@ -212,9 +197,14 @@ with tab2:
 with tab3:
     info = SEASON_INFO[season]
     st.subheader(f"{season} Season Guidance")
+
     st.markdown(f"""
     Duration: {info['months']}  
     Rainfall Pattern: {info['rain']}  
     Common Crops: {info['common_crops']}  
     Irrigation Tip: {info['irrigation_tip']}
     """)
+
+    st.info(
+        "Season-based guidance helps farmers plan irrigation without technical complexity."
+    )
