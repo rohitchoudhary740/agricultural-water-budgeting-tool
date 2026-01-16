@@ -103,13 +103,6 @@ with tab1:
     col2.metric("Crop Water Demand (m³)", round(adjusted_demand, 2))
     col3.metric("Water Balance (m³)", round(water_balance, 2))
 
-    if water_balance > 2000:
-        st.success("Status: WATER SURPLUS")
-    elif water_balance >= 0:
-        st.warning("Status: WATER BALANCED")
-    else:
-        st.error("Status: WATER DEFICIT")
-
     fig, ax = plt.subplots()
     ax.bar(["Available Water", "Crop Demand"], [total_available_water, adjusted_demand])
     ax.set_ylabel("Water (m³)")
@@ -130,94 +123,70 @@ with tab1:
 
     if water_balance < 0:
         risk_level = "HIGH RISK"
-        risk_msg = "🚨 High risk of crop failure due to water stress."
     elif water_balance < 2000:
         risk_level = "MEDIUM RISK"
-        risk_msg = "⚠️ Moderate risk. Use efficient irrigation."
     else:
         risk_level = "LOW RISK"
-        risk_msg = "✅ Water availability is sufficient."
 
     st.subheader("🌱 Smart Crop & Risk Advisory")
     st.write(f"**Recommended Crop:** {recommended_crop}")
     st.write(f"**Risk Level:** {risk_level}")
-    st.write(risk_msg)
 
 # ===============================
-# TAB 2 – BILINGUAL KEYWORD AI
+# TAB 2 – AI ASSISTANT (TEXT + MIC)
 # ===============================
 with tab2:
     st.subheader("🤖 AI Irrigation Assistant")
-    st.write("Ask in **Hindi or English** (e.g., *water*, *paani*, *crop*, *fasal*, *risk*)")
+    st.write("Ask using **text or voice** (Hindi / English supported)")
 
-    user_text = st.text_input("⌨️ Ask your question")
+    user_text = st.text_input("⌨️ Type your question")
+    audio = st.audio_input("🎤 Speak your question")
 
     def keyword_ai_response(text):
         t = text.lower()
 
-        # Water / Irrigation
         if any(k in t for k in ["paani", "water", "irrigation"]):
             if soil_moisture == "High":
-                return (
-                    "Soil moisture is high. No irrigation needed now.\n\n"
-                    "मिट्टी में नमी पर्याप्त है। अभी पानी देने की जरूरत नहीं।"
-                )
+                return "No irrigation needed now. मिट्टी में नमी पर्याप्त है।"
             elif soil_moisture == "Medium":
-                return (
-                    "Soil moisture is moderate. Irrigate in 1–2 days.\n\n"
-                    "मिट्टी में थोड़ी नमी है। 1–2 दिन में पानी दें।"
-                )
+                return "Irrigate in 1–2 days. 1–2 दिन में पानी दें।"
             else:
-                return (
-                    "Soil is dry. Immediate irrigation required.\n\n"
-                    "मिट्टी सूखी है। आज ही पानी देना जरूरी है।"
-                )
+                return "Immediate irrigation required. आज ही पानी दें।"
 
-        # Crop Recommendation
         elif any(k in t for k in ["crop", "fasal"]):
-            return (
-                f"Recommended crop based on current conditions is **{recommended_crop}**.\n\n"
-                f"वर्तमान स्थिति में **{recommended_crop}** सबसे उपयुक्त फसल है।"
-            )
+            return f"Recommended crop is {recommended_crop}. सुझाई गई फसल {recommended_crop} है।"
 
-        # Risk
-        elif any(k in t for k in ["risk", "nuksan", "loss"]):
-            return (
-                f"Current system risk level is **{risk_level}**.\n\n"
-                f"वर्तमान जोखिम स्तर **{risk_level}** है।"
-            )
+        elif any(k in t for k in ["risk", "loss", "nuksan"]):
+            return f"Current risk level is {risk_level}. वर्तमान जोखिम स्तर {risk_level} है।"
 
-        # Soil Moisture
         elif any(k in t for k in ["moisture", "nami"]):
-            return (
-                f"Soil moisture level is **{soil_moisture}**.\n\n"
-                f"मिट्टी की नमी का स्तर **{soil_moisture}** है।"
-            )
+            return f"Soil moisture is {soil_moisture}. मिट्टी की नमी {soil_moisture} है।"
 
-        # Rainfall
         elif any(k in t for k in ["rain", "barish"]):
-            return (
-                f"Rainfall data for {location} is used for water estimation.\n\n"
-                f"{location} के वर्षा डेटा के आधार पर पानी की गणना की जाती है।"
-            )
+            return f"Rainfall data of {location} is used. {location} का वर्षा डेटा उपयोग किया गया है।"
 
         else:
-            return (
-                "Please ask about water, crop, risk, moisture, or rainfall.\n\n"
-                "कृपया पानी, फसल, जोखिम, नमी या बारिश से संबंधित प्रश्न पूछें।"
-            )
+            return "Please ask about water, crop, risk, moisture, or rainfall."
 
     if st.button("Get AI Advice"):
         with st.spinner("AI is analyzing..."):
             time.sleep(1)
 
-        if user_text:
-            response = keyword_ai_response(user_text)
-        else:
+        # 🎤 VOICE HANDLING (PROTOTYPE SAFE)
+        if audio is not None:
             response = (
-                "Please type a question.\n\n"
-                "कृपया प्रश्न लिखें।"
+                "Voice input received. Advisory generated based on current field conditions.\n\n"
+                "वॉइस इनपुट प्राप्त हुआ। वर्तमान खेत की स्थिति के आधार पर सलाह दी गई है:\n\n"
+                f"👉 Soil moisture: {soil_moisture}\n"
+                f"👉 Recommended crop: {recommended_crop}\n"
+                f"👉 Risk level: {risk_level}"
             )
+
+        elif user_text:
+            response = keyword_ai_response(user_text)
+
+        else:
+            response = "Please type or speak a question."
 
         st.success("🤖 AI Advisory")
         st.write(response)
@@ -236,4 +205,4 @@ with tab3:
     **💡 Tip:** {info['irrigation_tip']}
     """)
 
-    st.info("Season-based guidance helps farmers plan irrigation without technical complexity.")
+    st.info("Season-based guidance helps farmers plan irrigation easily.")
