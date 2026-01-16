@@ -67,27 +67,10 @@ st.sidebar.header("🌾 Farm Details")
 location = st.sidebar.selectbox("📍 Location", list(RAINFALL_DATA.keys()))
 season = st.sidebar.selectbox("🌦 Crop Season", ["Kharif", "Rabi"])
 crop = st.sidebar.selectbox("🌱 Selected Crop", list(CROP_WATER_REQUIREMENT.keys()))
-
-area = st.sidebar.number_input(
-    "📐 Farm Area (hectares)",
-    min_value=0.1,
-    value=1.0
-)
-
-irrigation = st.sidebar.selectbox(
-    "💧 Irrigation Method",
-    list(IRRIGATION_FACTOR.keys())
-)
-
-groundwater = st.sidebar.selectbox(
-    "🚰 Groundwater Availability",
-    list(GROUNDWATER_INDEX.keys())
-)
-
-soil_moisture = st.sidebar.selectbox(
-    "🌍 Soil Moisture (Sensor Input)",
-    ["Low", "Medium", "High"]
-)
+area = st.sidebar.number_input("📐 Farm Area (hectares)", min_value=0.1, value=1.0)
+irrigation = st.sidebar.selectbox("💧 Irrigation Method", list(IRRIGATION_FACTOR.keys()))
+groundwater = st.sidebar.selectbox("🚰 Groundwater Availability", list(GROUNDWATER_INDEX.keys()))
+soil_moisture = st.sidebar.selectbox("🌍 Soil Moisture (Sensor Input)", ["Low", "Medium", "High"])
 
 # ===============================
 # TABS
@@ -97,7 +80,7 @@ tab1, tab2, tab3 = st.tabs(
 )
 
 # ===============================
-# TAB 1 – WATER BUDGET + CROP & RISK
+# TAB 1 – WATER BUDGET
 # ===============================
 with tab1:
     st.subheader("💧 Water Budget Summary")
@@ -111,12 +94,7 @@ with tab1:
     irrigation_efficiency = IRRIGATION_FACTOR[irrigation]
     base_demand = crop_wr * area * 10 * irrigation_efficiency
 
-    moisture_factor = (
-        0.6 if soil_moisture == "High"
-        else 0.8 if soil_moisture == "Medium"
-        else 1.0
-    )
-
+    moisture_factor = 0.6 if soil_moisture == "High" else 0.8 if soil_moisture == "Medium" else 1.0
     adjusted_demand = base_demand * moisture_factor
     water_balance = total_available_water - adjusted_demand
 
@@ -132,42 +110,30 @@ with tab1:
     else:
         st.error("Status: WATER DEFICIT")
 
-    # ===============================
-    # BAR CHART
-    # ===============================
     fig, ax = plt.subplots()
-    ax.bar(
-        ["Available Water", "Crop Demand"],
-        [total_available_water, adjusted_demand]
-    )
+    ax.bar(["Available Water", "Crop Demand"], [total_available_water, adjusted_demand])
     ax.set_ylabel("Water (m³)")
     st.pyplot(fig)
 
-    # ===============================
-    # CROP RECOMMENDATION
-    # ===============================
     def recommend_crop(total_water, area):
-        water_per_hectare = total_water / area
-        if water_per_hectare >= 10000:
+        wph = total_water / area
+        if wph >= 10000:
             return "Rice"
-        elif water_per_hectare >= 6000:
+        elif wph >= 6000:
             return "Maize"
-        elif water_per_hectare >= 5000:
+        elif wph >= 5000:
             return "Soybean"
         else:
             return "Wheat"
 
     recommended_crop = recommend_crop(total_available_water, area)
 
-    # ===============================
-    # RISK ASSESSMENT
-    # ===============================
     if water_balance < 0:
         risk_level = "HIGH RISK"
-        risk_msg = "🚨 High chance of water stress and crop failure."
+        risk_msg = "🚨 High risk of crop failure due to water stress."
     elif water_balance < 2000:
         risk_level = "MEDIUM RISK"
-        risk_msg = "⚠️ Limited water buffer. Use efficient irrigation."
+        risk_msg = "⚠️ Moderate risk. Use efficient irrigation."
     else:
         risk_level = "LOW RISK"
         risk_msg = "✅ Water availability is sufficient."
@@ -177,32 +143,81 @@ with tab1:
     st.write(f"**Risk Level:** {risk_level}")
     st.write(risk_msg)
 
-    if crop != recommended_crop:
-        st.warning(
-            f"Selected crop **{crop}** may be risky. "
-            f"**{recommended_crop}** is more suitable under current conditions."
-        )
-
 # ===============================
-# TAB 2 – AI ASSISTANT
+# TAB 2 – BILINGUAL KEYWORD AI
 # ===============================
 with tab2:
     st.subheader("🤖 AI Irrigation Assistant")
-    st.write("Ask in Hindi or English. Example: *Aaj paani dena chahiye?*")
+    st.write("Ask in **Hindi or English** (e.g., *water*, *paani*, *crop*, *fasal*, *risk*)")
 
-    user_text = st.text_input("⌨️ Type your question")
-    audio = st.audio_input("🎤 Speak your question")
+    user_text = st.text_input("⌨️ Ask your question")
+
+    def keyword_ai_response(text):
+        t = text.lower()
+
+        # Water / Irrigation
+        if any(k in t for k in ["paani", "water", "irrigation"]):
+            if soil_moisture == "High":
+                return (
+                    "Soil moisture is high. No irrigation needed now.\n\n"
+                    "मिट्टी में नमी पर्याप्त है। अभी पानी देने की जरूरत नहीं।"
+                )
+            elif soil_moisture == "Medium":
+                return (
+                    "Soil moisture is moderate. Irrigate in 1–2 days.\n\n"
+                    "मिट्टी में थोड़ी नमी है। 1–2 दिन में पानी दें।"
+                )
+            else:
+                return (
+                    "Soil is dry. Immediate irrigation required.\n\n"
+                    "मिट्टी सूखी है। आज ही पानी देना जरूरी है।"
+                )
+
+        # Crop Recommendation
+        elif any(k in t for k in ["crop", "fasal"]):
+            return (
+                f"Recommended crop based on current conditions is **{recommended_crop}**.\n\n"
+                f"वर्तमान स्थिति में **{recommended_crop}** सबसे उपयुक्त फसल है।"
+            )
+
+        # Risk
+        elif any(k in t for k in ["risk", "nuksan", "loss"]):
+            return (
+                f"Current system risk level is **{risk_level}**.\n\n"
+                f"वर्तमान जोखिम स्तर **{risk_level}** है।"
+            )
+
+        # Soil Moisture
+        elif any(k in t for k in ["moisture", "nami"]):
+            return (
+                f"Soil moisture level is **{soil_moisture}**.\n\n"
+                f"मिट्टी की नमी का स्तर **{soil_moisture}** है।"
+            )
+
+        # Rainfall
+        elif any(k in t for k in ["rain", "barish"]):
+            return (
+                f"Rainfall data for {location} is used for water estimation.\n\n"
+                f"{location} के वर्षा डेटा के आधार पर पानी की गणना की जाती है।"
+            )
+
+        else:
+            return (
+                "Please ask about water, crop, risk, moisture, or rainfall.\n\n"
+                "कृपया पानी, फसल, जोखिम, नमी या बारिश से संबंधित प्रश्न पूछें।"
+            )
 
     if st.button("Get AI Advice"):
-        with st.spinner("Analyzing field conditions..."):
+        with st.spinner("AI is analyzing..."):
             time.sleep(1)
 
-        if soil_moisture == "High":
-            response = "Mitti mein nami kaafi hai. Abhi paani dene ki zarurat nahi."
-        elif soil_moisture == "Medium":
-            response = "Mitti mein thodi nami hai. 1–2 din mein paani dena sahi rahega."
+        if user_text:
+            response = keyword_ai_response(user_text)
         else:
-            response = "Mitti sookhi hai. Aaj hi paani dena zaruri hai."
+            response = (
+                "Please type a question.\n\n"
+                "कृपया प्रश्न लिखें।"
+            )
 
         st.success("🤖 AI Advisory")
         st.write(response)
@@ -221,6 +236,4 @@ with tab3:
     **💡 Tip:** {info['irrigation_tip']}
     """)
 
-    st.info(
-        "Season-based guidance helps farmers plan irrigation without technical complexity."
-    )
+    st.info("Season-based guidance helps farmers plan irrigation without technical complexity.")
