@@ -1,6 +1,17 @@
+import pandas as pd
 import streamlit as st
 import matplotlib.pyplot as plt
 import time
+
+rainfall_df = pd.read_csv("gov_rainfall_tn.csv")
+
+# Convert to dictionary for fast lookup
+RAINFALL_DATA = dict(
+    zip(
+        rainfall_df["District"],
+        rainfall_df["Total_Actual_Rainfall_mm"]
+    )
+)
 
 # ===============================
 # PAGE CONFIG
@@ -64,7 +75,11 @@ SEASON_INFO = {
 # ===============================
 st.sidebar.header("Farm Details")
 
-location = st.sidebar.selectbox("Location", list(RAINFALL_DATA.keys()))
+location = st.sidebar.selectbox(
+    "District (Govt Rainfall Data)",
+    sorted(RAINFALL_DATA.keys())
+)
+
 season = st.sidebar.selectbox("Crop Season", ["Kharif", "Rabi"])
 crop = st.sidebar.selectbox("Selected Crop", list(CROP_WATER_REQUIREMENT.keys()))
 area = st.sidebar.number_input("Farm Area (hectares)", min_value=0.1, value=1.0)
