@@ -2,16 +2,7 @@ import pandas as pd
 import streamlit as st
 import matplotlib.pyplot as plt
 import time
-
-rainfall_df = pd.read_csv("gov_rainfall_tn.csv")
-
-# Convert to dictionary for fast lookup
-RAINFALL_DATA = dict(
-    zip(
-        rainfall_df["District"],
-        rainfall_df["Total_Actual_Rainfall_mm"]
-    )
-)
+import random
 
 # ===============================
 # PAGE CONFIG
@@ -23,19 +14,36 @@ st.set_page_config(
 
 st.title("Smart Irrigation & AI Assistant for Farmers")
 st.caption(
-    "Precision irrigation and water budgeting inspired by Israel’s water-efficient agriculture, "
-    "adapted for Indian farming conditions."
+    "Precision irrigation and water budgeting using government data "
+    "and field-level sensing."
 )
 
 # ===============================
-# STATIC DATA
+# LOAD GOVERNMENT DATA
 # ===============================
-RAINFALL_DATA = {
-    "Indore": 800,
-    "Bhopal": 1000,
-    "Nagpur": 900
+
+# --- Rainfall (Government CSV) ---
+rainfall_df = pd.read_csv("gov_rainfall_tn.csv")
+RAINFALL_DATA = dict(
+    zip(
+        rainfall_df["District"],
+        rainfall_df["Total_Actual_Rainfall_mm"]
+    )
+)
+
+# --- Groundwater (Government CSV) ---
+gw_df = pd.read_csv("gov_groundwater_tn.csv")
+
+GW_MAP = {
+    "Safe": 0.6,
+    "Semi-critical": 0.4,
+    "Critical": 0.2,
+    "Over-exploited": 0.1
 }
 
+# ===============================
+# STATIC AGRI DATA
+# ===============================
 CROP_WATER_REQUIREMENT = {
     "Rice": 1200,
     "Wheat": 450,
@@ -49,24 +57,18 @@ IRRIGATION_FACTOR = {
     "Drip": 0.6
 }
 
-GROUNDWATER_INDEX = {
-    "Low": 0.2,
-    "Medium": 0.4,
-    "High": 0.6
-}
-
 SEASON_INFO = {
     "Kharif": {
         "months": "June – October",
         "rain": "High rainfall",
         "common_crops": "Rice, Soybean, Maize",
-        "irrigation_tip": "Irrigation needed only when rainfall is irregular."
+        "irrigation_tip": "Irrigation required only if rainfall is irregular."
     },
     "Rabi": {
         "months": "October – March",
         "rain": "Low rainfall",
         "common_crops": "Wheat, Gram, Mustard",
-        "irrigation_tip": "Regular irrigation is required."
+        "irrigation_tip": "Regular irrigation required."
     }
 }
 
@@ -76,7 +78,7 @@ SEASON_INFO = {
 st.sidebar.header("Farm Details")
 
 location = st.sidebar.selectbox(
-    "District (Govt Rainfall Data)",
+    "District (Government Data)",
     sorted(RAINFALL_DATA.keys())
 )
 
@@ -84,8 +86,35 @@ season = st.sidebar.selectbox("Crop Season", ["Kharif", "Rabi"])
 crop = st.sidebar.selectbox("Selected Crop", list(CROP_WATER_REQUIREMENT.keys()))
 area = st.sidebar.number_input("Farm Area (hectares)", min_value=0.1, value=1.0)
 irrigation = st.sidebar.selectbox("Irrigation Method", list(IRRIGATION_FACTOR.keys()))
-groundwater = st.sidebar.selectbox("Groundwater Availability", list(GROUNDWATER_INDEX.keys()))
-soil_moisture = st.sidebar.selectbox("Soil Moisture Level", ["Low", "Medium", "High"])
+
+# --- Groundwater from Govt CSV ---
+gw_status = gw_df[gw_df["District"] == location]["Groundwater_Status"].values[0]
+groundwater_factor = GW_MAP[gw_status]
+
+st.sidebar.write(f"Groundwater Status (Govt): **{gw_status}**")
+
+# --- Soil Moisture (Live / Manual) ---
+soil_mode = st.sidebar.radio(
+    "Soil Moisture Source",
+    ["Live Sensor (Simulated)", "Manual"]
+)
+
+if soil_mode == "Manual":
+    soil_moisture = st.sidebar.selectbox(
+        "Soil Moisture Level",
+        ["Low", "Medium", "High"]
+    )
+else:
+    if "sensor_value" not in st.session_state:
+        st.session_state.sensor_value = "Medium"
+
+    if st.sidebar.button("Fetch Sensor Reading"):
+        st.session_state.sensor_value = random.choice(
+            ["Low", "Medium", "High"]
+        )
+
+    soil_moisture = st.session_state.sensor_value
+    st.sidebar.write(f"Live Soil Moisture: **{soil_moisture}**")
 
 # ===============================
 # TABS
@@ -99,8 +128,9 @@ tab1, tab2, tab3 = st.tabs(
 # ===============================
 with tab1:
     rainfall_mm = RAINFALL_DATA[location]
+
     rainfall_water = rainfall_mm * area * 10
-    groundwater_water = rainfall_water * GROUNDWATER_INDEX[groundwater]
+    groundwater_water = rainfall_water * groundwater_factor
     total_available_water = rainfall_water + groundwater_water
 
     crop_wr = CROP_WATER_REQUIREMENT[crop]
@@ -121,17 +151,20 @@ with tab1:
     c3.metric("Water Balance (m³)", round(water_balance, 2))
 
     fig, ax = plt.subplots()
-    ax.bar(["Available Water", "Crop Demand"], [total_available_water, adjusted_demand])
+    ax.bar(
+        ["Available Water", "Crop Demand"],
+        [total_available_water, adjusted_demand]
+    )
     ax.set_ylabel("Water (m³)")
     st.pyplot(fig)
 
     def recommend_crop(total_water, area):
-        water_per_hectare = total_water / area
-        if water_per_hectare >= 10000:
+        wph = total_water / area
+        if wph >= 10000:
             return "Rice"
-        elif water_per_hectare >= 6000:
+        elif wph >= 6000:
             return "Maize"
-        elif water_per_hectare >= 5000:
+        elif wph >= 5000:
             return "Soybean"
         else:
             return "Wheat"
@@ -146,15 +179,19 @@ with tab1:
         risk_level = "Low"
 
     st.subheader("Crop & Risk Advisory")
-    st.write(f"Recommended Crop: {recommended_crop}")
-    st.write(f"Risk Level: {risk_level}")
+    st.write(f"Recommended Crop: **{recommended_crop}**")
+    st.write(f"Risk Level: **{risk_level}**")
+
+    st.markdown("### Data Sources")
+    st.write("Rainfall: Government district-wise rainfall dataset")
+    st.write("Groundwater: CGWB / India-WRIS classification")
+    st.write("Soil Moisture: Field sensor (live simulation)")
 
 # ===============================
-# TAB 2 – AI ASSISTANT (TEXT + VOICE)
+# TAB 2 – AI ASSISTANT
 # ===============================
 with tab2:
     st.subheader("AI Irrigation Assistant")
-    st.write("You may use text or voice. Select preferred response language.")
 
     language = st.selectbox("Response Language", ["English", "Hindi"])
 
@@ -164,7 +201,7 @@ with tab2:
     def irrigation_advice(lang):
         if soil_moisture == "High":
             return (
-                "Soil moisture is sufficient. Irrigation is not required at this time."
+                "Soil moisture is sufficient. Irrigation is not required now."
                 if lang == "English"
                 else "मिट्टी में पर्याप्त नमी है। अभी सिंचाई की आवश्यकता नहीं है।"
             )
@@ -185,23 +222,13 @@ with tab2:
         with st.spinner("Analyzing field conditions..."):
             time.sleep(1)
 
-        # Priority order: Text → Voice → Default
-        if user_text:
+        if user_text or audio is not None:
             response = irrigation_advice(language)
-
-        elif audio is not None:
-            intro = (
-                "Voice input detected. Advisory generated based on current field conditions:\n\n"
-                if language == "English"
-                else "वॉइस इनपुट प्राप्त हुआ। खेत की वर्तमान स्थिति के आधार पर सलाह दी गई है:\n\n"
-            )
-            response = intro + irrigation_advice(language)
-
         else:
             response = (
-                "Please provide input using text or voice."
+                "Please provide text or voice input."
                 if language == "English"
-                else "कृपया टेक्स्ट या वॉइस के माध्यम से प्रश्न पूछें।"
+                else "कृपया टेक्स्ट या वॉइस इनपुट दें।"
             )
 
         st.write(response)
@@ -219,7 +246,3 @@ with tab3:
     Common Crops: {info['common_crops']}  
     Irrigation Tip: {info['irrigation_tip']}
     """)
-
-    st.info(
-        "Season-based guidance helps farmers plan irrigation without technical complexity."
-    )
