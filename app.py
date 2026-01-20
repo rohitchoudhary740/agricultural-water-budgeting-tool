@@ -41,6 +41,8 @@ GW_MAP = {
     "Over-exploited": 0.1
 }
 
+DEFAULT_GW_FACTOR = 0.3  # safe fallback
+
 # ===============================
 # STATIC AGRI DATA
 # ===============================
@@ -78,7 +80,7 @@ SEASON_INFO = {
 st.sidebar.header("Farm Details")
 
 location = st.sidebar.selectbox(
-    "District (Government Data)",
+    "District (Government Rainfall Data)",
     sorted(RAINFALL_DATA.keys())
 )
 
@@ -87,13 +89,24 @@ crop = st.sidebar.selectbox("Selected Crop", list(CROP_WATER_REQUIREMENT.keys())
 area = st.sidebar.number_input("Farm Area (hectares)", min_value=0.1, value=1.0)
 irrigation = st.sidebar.selectbox("Irrigation Method", list(IRRIGATION_FACTOR.keys()))
 
-# --- Groundwater from Govt CSV ---
-gw_status = gw_df[gw_df["District"] == location]["Groundwater_Status"].values[0]
-groundwater_factor = GW_MAP[gw_status]
+# ===============================
+# SAFE GROUNDWATER LOOKUP
+# ===============================
+gw_row = gw_df[gw_df["District"] == location]
 
-st.sidebar.write(f"Groundwater Status (Govt): **{gw_status}**")
+if not gw_row.empty:
+    gw_status = gw_row.iloc[0]["Groundwater_Status"]
+    groundwater_factor = GW_MAP.get(gw_status, DEFAULT_GW_FACTOR)
+    st.sidebar.write(f"Groundwater Status (Govt): **{gw_status}**")
+else:
+    gw_status = "Data Not Available"
+    groundwater_factor = DEFAULT_GW_FACTOR
+    st.sidebar.warning("Groundwater data not available for this district.")
+    st.sidebar.write("Using safe default groundwater factor.")
 
-# --- Soil Moisture (Live / Manual) ---
+# ===============================
+# SOIL MOISTURE INPUT
+# ===============================
 soil_mode = st.sidebar.radio(
     "Soil Moisture Source",
     ["Live Sensor (Simulated)", "Manual"]
@@ -184,8 +197,8 @@ with tab1:
 
     st.markdown("### Data Sources")
     st.write("Rainfall: Government district-wise rainfall dataset")
-    st.write("Groundwater: CGWB / India-WRIS classification")
-    st.write("Soil Moisture: Field sensor (live simulation)")
+    st.write("Groundwater: CGWB / India-WRIS (where available)")
+    st.write("Soil Moisture: Field sensor / live simulation")
 
 # ===============================
 # TAB 2 – AI ASSISTANT
@@ -194,8 +207,6 @@ with tab2:
     st.subheader("AI Irrigation Assistant")
 
     language = st.selectbox("Response Language", ["English", "Hindi"])
-
-    user_text = st.text_input("Type your question (optional)")
     audio = st.audio_input("Speak your question")
 
     def irrigation_advice(lang):
@@ -221,17 +232,7 @@ with tab2:
     if st.button("Get AI Advice"):
         with st.spinner("Analyzing field conditions..."):
             time.sleep(1)
-
-        if user_text or audio is not None:
-            response = irrigation_advice(language)
-        else:
-            response = (
-                "Please provide text or voice input."
-                if language == "English"
-                else "कृपया टेक्स्ट या वॉइस इनपुट दें।"
-            )
-
-        st.write(response)
+        st.write(irrigation_advice(language))
 
 # ===============================
 # TAB 3 – SEASON GUIDANCE
