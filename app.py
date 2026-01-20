@@ -5,15 +5,16 @@ import time
 import random
 from datetime import timedelta
 
-# ===============================
-# REAL-TIME RAINFALL FUNCTION
-# ===============================
+# ==================================================
+# FUNCTION: NEAR REAL-TIME RAINFALL (IMD DAILY CSV)
+# ==================================================
 def get_recent_rainfall_mp(district, days=7):
     try:
         df = pd.read_csv("daily_rainfall_mp.csv")
 
         df["Date"] = pd.to_datetime(df["Date"])
         df["Avg_rainfall"] = pd.to_numeric(df["Avg_rainfall"], errors="coerce")
+
         df = df[df["State"] == "Madhya Pradesh"]
 
         latest_date = df["Date"].max()
@@ -33,35 +34,28 @@ def get_recent_rainfall_mp(district, days=7):
         return 0.0
 
 
-# ===============================
+# ==================================================
 # PAGE CONFIG
-# ===============================
+# ==================================================
 st.set_page_config(page_title="Smart Irrigation & Water Budgeting", layout="wide")
 st.title("Smart Irrigation & AI Assistant for Farmers")
-st.caption("Government data + near real-time sensing for irrigation decisions")
+st.caption("Near real-time rainfall + CGWB groundwater + soil moisture sensing")
 
-# ===============================
-# LOAD GOVERNMENT DATA (MP)
-# ===============================
-rainfall_df = pd.read_csv("gov_rainfall_mp.csv")
-RAINFALL_DATA = dict(zip(
-    rainfall_df["District"],
-    rainfall_df["Total_Actual_Rainfall_mm"]
-))
-
+# ==================================================
+# LOAD DATA FILES
+# ==================================================
+daily_df = pd.read_csv("daily_rainfall_mp.csv")
 gw_df = pd.read_csv("gov_groundwater_mp.csv")
 
-GW_MAP = {
-    "Safe": 0.6,
-    "Semi-critical": 0.4,
-    "Critical": 0.2,
-    "Over-exploited": 0.1
-}
-DEFAULT_GW_FACTOR = 0.3
+# District list (safe intersection)
+districts = sorted(
+    set(daily_df["District"].unique())
+    .intersection(set(gw_df["District"].unique()))
+)
 
-# ===============================
-# STATIC AGRI DATA
-# ===============================
+# ==================================================
+# STATIC CONFIG
+# ==================================================
 CROP_WATER_REQUIREMENT = {
     "Rice": 1200,
     "Wheat": 450,
@@ -75,89 +69,78 @@ IRRIGATION_FACTOR = {
     "Drip": 0.6
 }
 
+GW_MAP = {
+    "Safe": 0.6,
+    "Semi-critical": 0.4,
+    "Critical": 0.2,
+    "Over-exploited": 0.1
+}
+
 SEASON_INFO = {
     "Kharif": {
         "months": "June – October",
         "rain": "High rainfall",
-        "common_crops": "Rice, Soybean, Maize",
-        "irrigation_tip": "Irrigation required only if rainfall is irregular."
+        "tip": "Irrigation needed only if rainfall is irregular."
     },
     "Rabi": {
         "months": "October – March",
         "rain": "Low rainfall",
-        "common_crops": "Wheat, Gram, Mustard",
-        "irrigation_tip": "Regular irrigation required."
+        "tip": "Regular irrigation required."
     }
 }
 
-# ===============================
-# SIDEBAR
-# ===============================
+# ==================================================
+# SIDEBAR INPUTS
+# ==================================================
 st.sidebar.header("Farm Details")
 
-location = st.sidebar.selectbox(
-    "District",
-    sorted(RAINFALL_DATA.keys())
-)
-
+location = st.sidebar.selectbox("District", districts)
 season = st.sidebar.selectbox("Season", ["Kharif", "Rabi"])
 crop = st.sidebar.selectbox("Crop", list(CROP_WATER_REQUIREMENT.keys()))
-area = st.sidebar.number_input("Area (hectares)", min_value=0.1, value=1.0)
+area = st.sidebar.number_input("Farm Area (hectares)", min_value=0.1, value=1.0)
 irrigation = st.sidebar.selectbox("Irrigation Method", list(IRRIGATION_FACTOR.keys()))
 
-rainfall_mode = st.sidebar.radio(
-    "Rainfall Source",
-    ["Near Real-Time (IMD Daily)", "Annual Govt Average"]
-)
-
-# ===============================
-# GROUNDWATER LOOKUP
-# ===============================
+# ==================================================
+# GROUNDWATER STATUS (CGWB)
+# ==================================================
 gw_row = gw_df[gw_df["District"] == location]
 
 if not gw_row.empty:
     gw_status = gw_row.iloc[0]["Groundwater_Status"]
-    groundwater_factor = GW_MAP.get(gw_status, DEFAULT_GW_FACTOR)
+    groundwater_factor = GW_MAP.get(gw_status, 0.3)
     st.sidebar.write(f"Groundwater Status: **{gw_status}**")
 else:
-    groundwater_factor = DEFAULT_GW_FACTOR
-    st.sidebar.warning("Groundwater data not available. Using safe default.")
+    groundwater_factor = 0.3
+    st.sidebar.warning("Groundwater data unavailable. Using safe default.")
 
-# ===============================
-# SOIL MOISTURE
-# ===============================
-soil_mode = st.sidebar.radio(
-    "Soil Moisture",
-    ["Live Sensor (Simulated)", "Manual"]
-)
+# ==================================================
+# SOIL MOISTURE INPUT
+# ==================================================
+soil_mode = st.sidebar.radio("Soil Moisture Source", ["Live Sensor (Simulated)", "Manual"])
 
 if soil_mode == "Manual":
-    soil_moisture = st.sidebar.selectbox("Moisture Level", ["Low", "Medium", "High"])
+    soil_moisture = st.sidebar.selectbox("Soil Moisture Level", ["Low", "Medium", "High"])
 else:
-    if "sensor_value" not in st.session_state:
-        st.session_state.sensor_value = "Medium"
+    if "sensor" not in st.session_state:
+        st.session_state.sensor = "Medium"
 
     if st.sidebar.button("Fetch Sensor Reading"):
-        st.session_state.sensor_value = random.choice(["Low", "Medium", "High"])
+        st.session_state.sensor = random.choice(["Low", "Medium", "High"])
 
-    soil_moisture = st.session_state.sensor_value
-    st.sidebar.write(f"Live Moisture: **{soil_moisture}**")
+    soil_moisture = st.session_state.sensor
+    st.sidebar.write(f"Live Soil Moisture: **{soil_moisture}**")
 
-# ===============================
+# ==================================================
 # TABS
-# ===============================
+# ==================================================
 tab1, tab2, tab3 = st.tabs(["Water Budget", "AI Assistant", "Season Guidance"])
 
-# ===============================
-# TAB 1 — WATER BUDGET
-# ===============================
+# ==================================================
+# TAB 1: WATER BUDGET
+# ==================================================
 with tab1:
-    if rainfall_mode == "Near Real-Time (IMD Daily)":
-        rainfall_mm = get_recent_rainfall_mp(location)
-        st.caption("Source: IMD daily rainfall (last 7 days)")
-    else:
-        rainfall_mm = RAINFALL_DATA.get(location, 0)
-        st.caption("Source: Government annual rainfall")
+    rainfall_mm = get_recent_rainfall_mp(location)
+    st.caption("Source: IMD daily district-wise rainfall (last 7 days)")
 
     st.write(f"Rainfall Used (mm): **{rainfall_mm}**")
 
@@ -182,32 +165,35 @@ with tab1:
 
     fig, ax = plt.subplots()
     ax.bar(["Available", "Demand"], [total_available_water, adjusted_demand])
+    ax.set_ylabel("Water (m³)")
     st.pyplot(fig)
 
-# ===============================
-# TAB 2 — AI ASSISTANT
-# ===============================
+# ==================================================
+# TAB 2: AI ASSISTANT
+# ==================================================
 with tab2:
     st.subheader("AI Irrigation Assistant")
     language = st.selectbox("Language", ["English", "Hindi"])
 
     if st.button("Get Advice"):
         time.sleep(1)
-        if soil_moisture == "High":
-            st.write("No irrigation required." if language == "English" else "अभी सिंचाई की आवश्यकता नहीं है।")
-        elif soil_moisture == "Medium":
-            st.write("Irrigate in 1–2 days." if language == "English" else "1–2 दिन में सिंचाई करें।")
-        else:
-            st.write("Immediate irrigation required." if language == "English" else "तुरंत सिंचाई आवश्यक है।")
 
-# ===============================
-# TAB 3 — SEASON GUIDANCE
-# ===============================
+        if soil_moisture == "High":
+            msg = "No irrigation required." if language == "English" else "अभी सिंचाई की आवश्यकता नहीं है।"
+        elif soil_moisture == "Medium":
+            msg = "Irrigate in 1–2 days." if language == "English" else "1–2 दिन में सिंचाई करें।"
+        else:
+            msg = "Immediate irrigation required." if language == "English" else "तुरंत सिंचाई आवश्यक है।"
+
+        st.success(msg)
+
+# ==================================================
+# TAB 3: SEASON GUIDANCE
+# ==================================================
 with tab3:
     info = SEASON_INFO[season]
     st.markdown(f"""
-    **Duration:** {info['months']}  
-    **Rainfall:** {info['rain']}  
-    **Crops:** {info['common_crops']}  
-    **Tip:** {info['irrigation_tip']}
+    **Season Duration:** {info['months']}  
+    **Rainfall Pattern:** {info['rain']}  
+    **Guidance:** {info['tip']}
     """)
