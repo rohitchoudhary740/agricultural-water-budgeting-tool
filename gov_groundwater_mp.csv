@@ -1,4 +1,9 @@
 District,Groundwater_Status
 Indore,Over-exploited
-Bhopal,Critical
-Chhindwara,Semi-critical
+Bhopal,Semi-critical
+Ujjain,Critical
+Ratlam,Critical
+Gwalior,Semi-critical
+Jabalpur,Semi-critical
+Rewa,Safe
+... (remaining districts) ...
